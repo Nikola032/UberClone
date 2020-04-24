@@ -3,6 +3,7 @@ package com.example.uberclone;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.Intent;
 import android.net.sip.SipSession;
 import android.os.Bundle;
 import android.view.Menu;
@@ -16,7 +17,9 @@ import android.widget.Toast;
 import com.parse.LogInCallback;
 import com.parse.ParseAnonymousUtils;
 import com.parse.ParseException;
+import com.parse.ParseInstallation;
 import com.parse.ParseUser;
+import com.parse.SaveCallback;
 import com.parse.SignUpCallback;
 import com.shashank.sony.fancytoastlib.FancyToast;
 
@@ -50,9 +53,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         btnOneTimeLogIn.setOnClickListener(this);
 
         state = State.SIGNUP;
-
-
+        ParseInstallation.getCurrentInstallation().saveInBackground();
         if (ParseUser.getCurrentUser() != null) {
+
+            //ParseUser.logOut();
+            transitionToPassingerActivity();
 
         }
 
@@ -81,6 +86,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             if (e == null) {
                                 FancyToast.makeText(MainActivity.this, "Signed Up",
                                         Toast.LENGTH_SHORT, FancyToast.SUCCESS, true).show();
+                                transitionToPassingerActivity();
+
                             }
                         }
                     });
@@ -97,6 +104,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                 FancyToast.makeText(MainActivity.this,
                                         "User Logged in",Toast.LENGTH_SHORT,FancyToast.INFO,
                                         true).show();
+                                transitionToPassingerActivity();
                             }
 
                         }
@@ -122,7 +130,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                             user.put("as",edtDOrP.getText().toString());
 
-                            user.saveInBackground();
+                            user.saveInBackground(new SaveCallback() {
+                                @Override
+                                public void done(ParseException e) {
+                                    transitionToPassingerActivity();
+                                }
+                            });
 
                         }
                     }
@@ -160,5 +173,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    private void transitionToPassingerActivity() {
+        if (ParseUser.getCurrentUser() != null ) {
+            if (ParseUser.getCurrentUser().get("as").equals("Passinger")) {
+                Intent intent = new Intent(MainActivity.this, PassingerActivity.class);
+                startActivity(intent);
+            }
+        }
     }
 }
