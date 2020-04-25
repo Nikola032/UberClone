@@ -12,6 +12,9 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.Toast;
 
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -20,13 +23,22 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.parse.Parse;
+import com.parse.ParseException;
+import com.parse.ParseGeoPoint;
+import com.parse.ParseObject;
+import com.parse.ParseUser;
+import com.parse.SaveCallback;
+import com.shashank.sony.fancytoastlib.FancyToast;
 
-public class PassingerActivity extends FragmentActivity implements OnMapReadyCallback {
+public class PassingerActivity extends FragmentActivity implements OnMapReadyCallback, View.OnClickListener {
 
     private GoogleMap mMap;
 
     private LocationManager locationManager;
     private LocationListener locationListener;
+
+    private Button btnRequestCar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,6 +48,9 @@ public class PassingerActivity extends FragmentActivity implements OnMapReadyCal
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+
+        btnRequestCar = findViewById(R.id.btnRequestCar);
+        btnRequestCar.setOnClickListener(PassingerActivity.this);
     }
 
 
@@ -114,6 +129,42 @@ public class PassingerActivity extends FragmentActivity implements OnMapReadyCal
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(passingerLocation,15));
 
         mMap.addMarker(new MarkerOptions().position(passingerLocation).title("You are here!!! "));
+
+    }
+
+    @Override
+    public void onClick(View view) {
+        if (ContextCompat.checkSelfPermission(PassingerActivity.this,Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED){
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,0,0,locationListener);
+
+            final Location passingerCurrentLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+
+            if (passingerCurrentLocation != null) {
+
+                ParseObject requestCar = new ParseObject( "RequestCar");
+                requestCar.put("username", ParseUser.getCurrentUser().getUsername());
+
+                ParseGeoPoint userLocation = new ParseGeoPoint(passingerCurrentLocation.getLatitude(),passingerCurrentLocation.getLongitude());
+                requestCar.put("passingerLocation",userLocation);
+
+                requestCar.saveInBackground(new SaveCallback() {
+                    @Override
+                    public void done(ParseException e) {
+                        if (e == null) {
+                            FancyToast.makeText(PassingerActivity.this,
+                                    "A car request is sent",Toast.LENGTH_SHORT,
+                                    FancyToast.WARNING,true).show();
+
+                            btnRequestCar.setText("Cancel your uber order");
+                        }
+                    }
+                });
+
+            }else {
+                FancyToast.makeText(PassingerActivity.this,
+                        "Unknown error", Toast.LENGTH_SHORT,FancyToast.INFO,true).show();
+            }
+        }
 
     }
 }
