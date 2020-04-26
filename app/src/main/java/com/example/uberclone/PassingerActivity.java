@@ -23,13 +23,19 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.parse.DeleteCallback;
+import com.parse.FindCallback;
+import com.parse.LogOutCallback;
 import com.parse.Parse;
 import com.parse.ParseException;
 import com.parse.ParseGeoPoint;
 import com.parse.ParseObject;
+import com.parse.ParseQuery;
 import com.parse.ParseUser;
 import com.parse.SaveCallback;
 import com.shashank.sony.fancytoastlib.FancyToast;
+
+import java.util.List;
 
 public class PassingerActivity extends FragmentActivity implements OnMapReadyCallback, View.OnClickListener {
 
@@ -39,6 +45,9 @@ public class PassingerActivity extends FragmentActivity implements OnMapReadyCal
     private LocationListener locationListener;
 
     private Button btnRequestCar;
+
+    private boolean isUberCancelled = true;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,6 +60,21 @@ public class PassingerActivity extends FragmentActivity implements OnMapReadyCal
 
         btnRequestCar = findViewById(R.id.btnRequestCar);
         btnRequestCar.setOnClickListener(PassingerActivity.this);
+
+        ParseQuery<ParseObject> carRequestQuery = ParseQuery.getQuery("RequestCar");
+        carRequestQuery.whereEqualTo("username" ,ParseUser.getCurrentUser().getUsername());
+        carRequestQuery.findInBackground(new FindCallback<ParseObject>() {
+            @Override
+            public void done(List<ParseObject> objects, ParseException e) {
+                if (objects.size() > 0 && e == null) {
+
+                    isUberCancelled = false;
+
+                    btnRequestCar.setText("Cancel your Uber request!");
+
+                }
+            }
+        });
     }
 
 
@@ -134,36 +158,83 @@ public class PassingerActivity extends FragmentActivity implements OnMapReadyCal
 
     @Override
     public void onClick(View view) {
-        if (ContextCompat.checkSelfPermission(PassingerActivity.this,Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED){
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,0,0,locationListener);
+        if (isUberCancelled == true){
+        if (ContextCompat.checkSelfPermission(PassingerActivity.this,Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
 
             final Location passingerCurrentLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
 
             if (passingerCurrentLocation != null) {
 
-                ParseObject requestCar = new ParseObject( "RequestCar");
+                ParseObject requestCar = new ParseObject("RequestCar");
                 requestCar.put("username", ParseUser.getCurrentUser().getUsername());
 
-                ParseGeoPoint userLocation = new ParseGeoPoint(passingerCurrentLocation.getLatitude(),passingerCurrentLocation.getLongitude());
-                requestCar.put("passingerLocation",userLocation);
+                ParseGeoPoint userLocation = new ParseGeoPoint(passingerCurrentLocation.getLatitude(), passingerCurrentLocation.getLongitude());
+                requestCar.put("passingerLocation", userLocation);
 
                 requestCar.saveInBackground(new SaveCallback() {
                     @Override
                     public void done(ParseException e) {
                         if (e == null) {
                             FancyToast.makeText(PassingerActivity.this,
-                                    "A car request is sent",Toast.LENGTH_SHORT,
-                                    FancyToast.WARNING,true).show();
+                                    "A car request is sent", Toast.LENGTH_SHORT,
+                                    FancyToast.WARNING, true).show();
 
+
+                            isUberCancelled = false;
                             btnRequestCar.setText("Cancel your uber order");
                         }
                     }
                 });
 
-            }else {
+                findViewById(R.id.btnLogOutFromPassingerActivity).setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        ParseUser.logOutInBackground(new LogOutCallback() {
+                            @Override
+                            public void done(ParseException e) {
+                                if (e == null) {
+                                    finish();
+                                }
+                            }
+                        });
+
+                    }
+                });
+
+            } else {
                 FancyToast.makeText(PassingerActivity.this,
-                        "Unknown error", Toast.LENGTH_SHORT,FancyToast.INFO,true).show();
+                        "Unknown error", Toast.LENGTH_SHORT, FancyToast.INFO, true).show();
             }
+        }
+        } else {
+            ParseQuery<ParseObject> carRequestQuery = ParseQuery.getQuery("RequestCar");
+            carRequestQuery.whereEqualTo("username",ParseUser.getCurrentUser().getUsername());
+            carRequestQuery.findInBackground(new FindCallback<ParseObject>() {
+                @Override
+                public void done(List<ParseObject> requestList, ParseException e) {
+                    if (requestList.size() > 0 && e == null) {
+
+                        isUberCancelled = true;
+                        btnRequestCar.setText("Request a new Uber ");
+
+                        for (ParseObject uberRequest : requestList) {
+
+                            uberRequest.deleteInBackground(new DeleteCallback() {
+                                @Override
+                                public void done(ParseException e) {
+                                    if (e == null) {
+                                        FancyToast.makeText(PassingerActivity.this,
+                                                "requests delited",Toast.LENGTH_SHORT,
+                                                FancyToast.WARNING,true).show();
+                                    }
+                                }
+                            });
+                        }
+                    }
+                }
+            });
+
         }
 
     }
